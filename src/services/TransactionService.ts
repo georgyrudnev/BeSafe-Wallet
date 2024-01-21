@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { goerli } from '../models/Chain';
+import { sepolia } from '../models/Chain';
 
 
 
@@ -12,7 +12,7 @@ export class TransactionService {
     const options = {
         method: 'GET',
         url: `${TransactionService.API_URL}/${address}`,
-        params: {chain: goerli.name.toLowerCase()},
+        params: {chain: sepolia.name.toLowerCase()},
         headers: {accept: 'application/json', 'X-API-Key': TransactionService.API_KEY}
       };
 

@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Account } from '../../models/Account';
-import { goerli } from '../../models/Chain';
+import { sepolia } from '../../models/Chain';
 import { Transaction } from '../../models/Transaction';
 import { TransactionService } from '../../services/TransactionService';
 import { shortenAddress } from '../../utils/AccountUtils';
@@ -86,7 +86,7 @@ const AccountTransactions: React.FC<AccountTransactionsProps> = ({ account }) =>
                 <tr key={transaction.hash}>
                 <td>
                     <a
-                    href={`${goerli.blockExplorerUrl}/tx/${transaction.hash}`}
+                    href={`${sepolia.blockExplorerUrl}/tx/${transaction.hash}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     >
@@ -95,7 +95,7 @@ const AccountTransactions: React.FC<AccountTransactionsProps> = ({ account }) =>
                 </td>
                 <td>
                     <a
-                    href={`${goerli.blockExplorerUrl}/address/${transaction.from_address}`}
+                    href={`${sepolia.blockExplorerUrl}/address/${transaction.from_address}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     >
@@ -109,7 +109,7 @@ const AccountTransactions: React.FC<AccountTransactionsProps> = ({ account }) =>
                 </td>
                 <td>
                     <a
-                    href={`${goerli.blockExplorerUrl}/address/${transaction.to_address}`}
+                    href={`${sepolia.blockExplorerUrl}/address/${transaction.to_address}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     >

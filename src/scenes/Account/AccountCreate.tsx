@@ -60,6 +60,9 @@ function AccountCreate() {
     // Call the generateAccount function with no arguments
     const result = await generateAccount();
 
+    // THIS NEEEDS TO BE REMOVED IN PRODUCTION OR MOVED TO A SECURE LOCATION
+    console.log(result.account);
+
     // Update the account state with the newly created account
     setAccount(result.account);
   }

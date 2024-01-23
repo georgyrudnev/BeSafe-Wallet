@@ -81,8 +81,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
   return (
     <div className='AccountDetail container'>
         <h4>
-            // MARKER: Add addresss from chain.ts
-                  Address: <a href={`https://sepolia.etherscan.io/address/${account.address}`} target="_blank" rel="noreferrer">
+                  Address: <a href={`${sepolia.blockExplorerUrl}/address/${account.address}`} target="_blank" rel="noreferrer">
             {account.address}
             </a><br/>
             Balance: {balance} ETH

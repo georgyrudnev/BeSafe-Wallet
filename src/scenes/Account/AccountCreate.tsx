@@ -70,7 +70,7 @@ function AccountCreate() {
   return (
     <div className='AccountCreate p-5 m-3 card shadow'>
       <h1>
-        Aqua Wallet
+      BeSafe Wallet
       </h1>
       <form onSubmit={event => event.preventDefault()}>
         <button type="button" className="btn btn-primary" onClick={createAccount}>

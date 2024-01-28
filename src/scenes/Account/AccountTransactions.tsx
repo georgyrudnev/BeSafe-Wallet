@@ -27,6 +27,7 @@ const AccountTransactions: React.FC<AccountTransactionsProps> = ({ account }) =>
           });
         TransactionService.getTransactions(account.address).then(response => {
           setTransactions(response.data.result);
+          console.log({response})
         }).catch(error => {
             console.log({error})
             setNetworkResponse({
@@ -126,6 +127,7 @@ const AccountTransactions: React.FC<AccountTransactionsProps> = ({ account }) =>
             ))}
             </tbody>
         </table>
+
     </div>
   );
 };

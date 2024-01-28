@@ -1,17 +1,39 @@
-import React, {useEffect, useState} from 'react';
-import { sendToken } from '../../utils/TransactionUtils';
+import React, {useCallback, useEffect, useState} from 'react';
+import { sendToken, Transaction } from '../../utils/TransactionUtils';
 import { sepolia } from '../../models/Chain';
 import { Account } from '../../models/Account';
 import AccountTransactions from './AccountTransactions';
 import { ethers } from 'ethers';
 import { toFixedIfNecessary } from '../../utils/AccountUtils';
 import './Account.css';
+import { get } from 'http';
+import axios from 'axios';
+import { TransactionService } from '../../services/TransactionService';
+import { wait } from '@testing-library/user-event/dist/utils';
+
 
 interface AccountDetailProps {
   account: Account
 }
 
+
+const API_URL_BC = 'https://sepolia.beaconcha.in/';                       
+const API_KEY_BC = 'V3haY1Rtck9OOFVZOUsxd2hmRmVKY1RXb2gzTQ';
+
+
+  // Declare a new state variable, which we'll call "showSafetyProbabilityInput"
+  // and initialize it to false
+
 const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
+  // Set probability input field
+  const [showSafetyProbabilityInput, setShowSafetyProbabilityInput] = useState(false);
+  console.log({showSafetyProbabilityInput})
+  const [probability, setProbability] = useState('');
+
+  // Declare a new state variable, which we'll call participation_rate   TODO CHECK IF STRING OR NUMBER 
+  const [participation_rate, setParticipation_rate] = useState('');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
   const [destinationAddress, setDestinationAddress] = useState('');
   const [amount, setAmount] = useState(0);
   const [balance, setBalance] = useState(account.balance)
@@ -30,6 +52,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
     fetchData();
 }, [account.address])
 
+
   function handleDestinationAddressChange(event: React.ChangeEvent<HTMLInputElement>) {
     setDestinationAddress(event.target.value);
   }
@@ -38,8 +61,50 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
     setAmount(Number.parseFloat(event.target.value));
   }
 
+  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    // Update the seedphrase state with the value from the text input
+    setProbability(event.target.value);
+  }
+
+  const handleKeyDown = async (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.keyCode === 13) {
+      event.preventDefault();
+      transfer();
+    }
+  }
+
+  async function getParticipation(blockNumber: string) {
+            TransactionService.getSlot(blockNumber).then(response => {
+              //console.log(response.data.data[0].posConsensus);
+              //console.log(response.data.data[0].consensusAlgorithm);
+              setTransactions(response.data);
+              console.log("after setting transactions array state", response.data);
+
+            }).catch(error => {
+                console.log({error})
+            })
+      
+    const slot = "1";
+    console.log("Slot: " + slot);
+    const slotOptions = {
+      method: 'GET',
+      url: `${API_URL_BC}api/v1/slot/${slot}`,
+      params: {apikey: API_KEY_BC},
+      headers: {accept: 'application/json'}
+    };
+    console.log("Slot Request: ", slotOptions)
+    const response = await axios.request(slotOptions);
+    console.log("Slot response: ", response.data)
+    return response.data.syncaggregate_participation
+  }
+
+  useEffect(() => {
+    console.log({transactions});
+  }, [transactions]);
+
   async function transfer() {
     // Set the network response status to "pending"
+    console.log({showSafetyProbabilityInput})
     setNetworkResponse({
       status: 'pending',
       message: '',
@@ -50,12 +115,20 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
 
       if (receipt.status === 1) {
         // Set the network response status to "complete" and the message to the transaction hash
-        setNetworkResponse({
-          status: 'complete',
-          message: <p>Transfer complete! <a href={`${sepolia.blockExplorerUrl}/tx/${receipt.transactionHash}`} target="_blank" rel="noreferrer">
-            View transaction
-            </a></p>,
-        });
+        wait(20000); // Wait until sepolia node gets block update
+        setTimeout(() => {
+          // Place the following lines here
+          setParticipation_rate(getParticipation(receipt.blockNumber.toString()).toString());
+          console.log("Participation rate (with delay): " + participation_rate);
+          console.log(transactions);
+          setNetworkResponse({
+            status: 'complete',
+            message: <p>Transfer complete! <a href={`${sepolia.blockExplorerUrl}/tx/${receipt.transactionHash}`} target="_blank" rel="noreferrer">
+              View transaction
+              </a></p>,
+          });
+          return receipt;
+        }, 20000); // Delay execution for 20000 milliseconds (20 seconds) to give time for sepolia node to update
         return receipt;
       } else {
         // Transaction failed
@@ -110,11 +183,20 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
         <button
             className="btn btn-primary"
             type="button"
-            onClick={transfer}
+            onClick={() => showSafetyProbabilityInput ? transfer : setShowSafetyProbabilityInput(true)}
             disabled={!amount || networkResponse.status === 'pending'}
         >
             Send {amount} ETH
         </button>
+
+        {/* Show the safety probability input and button if showSafetyProbabilityInput is true */}
+        {showSafetyProbabilityInput && (
+          <div className="form-group mt-3">
+            <label>Probability for transaction safety:</label>
+            <input type="text" placeholder="Enter a value between 0 and 100" aria-placeholder="Enter a value between 0 and 100" className="form-control"
+              value={probability} onChange={handleChange} onKeyDown={handleKeyDown} />
+          </div>
+        )}
 
         {networkResponse.status &&
             <>
@@ -131,3 +213,4 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
 }
 
 export default AccountDetail;
+

@@ -4,4 +4,5 @@ export interface Transaction {
     to_address: string,
     value: string,
     block_timestamp: string,
+    block: string,
 };

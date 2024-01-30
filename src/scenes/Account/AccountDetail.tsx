@@ -32,7 +32,8 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
 
   // Declare a new state variable, which we'll call participation_rate   TODO CHECK IF STRING OR NUMBER 
   const [participation_rate, setParticipation_rate] = useState('');
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<Transaction>();
+  const [slot, setSlot] = useState(0);
 
   const [destinationAddress, setDestinationAddress] = useState('');
   const [amount, setAmount] = useState(0);
@@ -73,35 +74,85 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
     }
   }
 
-  async function getParticipation(blockNumber: string) {
-            TransactionService.getSlot(blockNumber).then(response => {
-              //console.log(response.data.data[0].posConsensus);
-              //console.log(response.data.data[0].consensusAlgorithm);
-              setTransactions(response.data);
-              console.log("after setting transactions array state", response.data);
-
-            }).catch(error => {
-                console.log({error})
-            })
-      
-    const slot = "1";
-    console.log("Slot: " + slot);
-    const slotOptions = {
-      method: 'GET',
-      url: `${API_URL_BC}api/v1/slot/${slot}`,
-      params: {apikey: API_KEY_BC},
-      headers: {accept: 'application/json'}
-    };
-    console.log("Slot Request: ", slotOptions)
-    const response = await axios.request(slotOptions);
-    console.log("Slot response: ", response.data)
-    return response.data.syncaggregate_participation
-  }
-
   useEffect(() => {
+    if (transactions) {
+      // Your code here that depends on the updated transactions state
+      console.log("Consensus algorithm " + (transactions.consensusAlgorithm));
+      if (transactions.posConsensus.slot != null) {
+      setSlot(transactions.posConsensus.slot);
+      }
+      console.log("Slot from transactions: " + slot);
+      const fetchData = async () => {
+        try {
+          const slotOptions = {
+            method: 'GET',
+            url: `${API_URL_BC}api/v1/slot/${slot}`,
+            params: {apikey: API_KEY_BC},
+            headers: {accept: 'application/json'}
+          };
+
+          console.log("Slot Request: ", slotOptions)
+          const responseParti = await axios.request(slotOptions);
+          console.log("Slot response: ", responseParti.data)
+          setParticipation_rate(responseParti.data.syncaggregate_participation);
+          // Your code here that depends on the responseParti data
+        } catch (error) {
+          console.log({error})
+        }
+      };
+
+      fetchData();
+    }
+  }, [transactions, slot]);
+
+  async function getParticipation(blockNumber: string, retryCount = 0) {
+    const maxRetries = 3;
+
+    setTimeout(async () => { 
+              try {
+                const response = await TransactionService.getSlot(blockNumber);
+                if (response.data.data[0]) {
+                setTransactions(response.data.data[0]);
+                console.log("before timeout", response.data); }
+                else if (retryCount < maxRetries) {
+                  console.log(`Retry attempt ${retryCount + 1}`);
+                  getParticipation(blockNumber, retryCount + 1);
+                }
+             /*   
+                  // setSlot(response.data.data[0].posConsensus.slot);
+                  console.log("after timeout", response.data);
+                  console.log("Consensus algorithm " + (transactions?.consensusAlgorithm ?? ''));
+                  console.log("Slot from transactions: " + slot);
+                
+            
+                const slotOptions = {
+                  method: 'GET',
+                  url: `${API_URL_BC}api/v1/slot/${slot}`,
+                  params: {apikey: API_KEY_BC},
+                  headers: {accept: 'application/json'}
+                };
+            
+                console.log("Slot Request: ", slotOptions)
+                const responseParti = await axios.request(slotOptions);
+                console.log("Slot response: ", responseParti.data)
+            
+                return responseParti.data.syncaggregate_participation */
+              } catch (error) {
+                console.log({error})
+                return 0;
+              }
+            }, 20000); // Delay execution for 20000 milliseconds (20 seconds) to give time for sepolia node to update
+            return 0;
+            }
+
+ /* useEffect(() => {
     console.log({transactions});
   }, [transactions]);
 
+  useEffect(() => {
+    console.log(slot);
+  }, [slot]);
+*/
   async function transfer() {
     // Set the network response status to "pending"
     console.log({showSafetyProbabilityInput})
@@ -128,7 +179,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
               </a></p>,
           });
           return receipt;
-        }, 20000); // Delay execution for 20000 milliseconds (20 seconds) to give time for sepolia node to update
+        }, 1000); // Delay execution for 20000 milliseconds (20 seconds) to give time for sepolia node to update
         return receipt;
       } else {
         // Transaction failed

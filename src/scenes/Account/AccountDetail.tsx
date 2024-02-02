@@ -10,13 +10,14 @@ import { get } from 'http';
 import axios from 'axios';
 import { TransactionService } from '../../services/TransactionService';
 import { wait } from '@testing-library/user-event/dist/utils';
+import { hypergeometricCDF, calculateMeanValues } from '../../utils/math.js';
 
 
 interface AccountDetailProps {
   account: Account
 }
 
-
+const active_validators = 1850;
 const API_URL_BC = 'https://sepolia.beaconcha.in/';                       
 const API_KEY_BC = 'V3haY1Rtck9OOFVZOUsxd2hmRmVKY1RXb2gzTQ';
 
@@ -28,7 +29,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
   // Set probability input field
   const [showSafetyProbabilityInput, setShowSafetyProbabilityInput] = useState(false);
   console.log({showSafetyProbabilityInput})
-  const [probability, setProbability] = useState('');
+  const [probability, setProbability] = useState(0);
 
   // Declare a new state variable, which we'll call participation_rate   TODO CHECK IF STRING OR NUMBER 
   const [participation_rate, setParticipation_rate] = useState('');
@@ -59,12 +60,15 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
   }
 
   function handleAmountChange(event: React.ChangeEvent<HTMLInputElement>) {
-    setAmount(Number.parseFloat(event.target.value));
+    if (!Number.isNaN(event.target.value)) { 
+      setAmount(Number.parseFloat(event.target.value));
+    }
   }
 
-  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
-    // Update the seedphrase state with the value from the text input
-    setProbability(event.target.value);
+  function handleProbabilityChange(event: React.ChangeEvent<HTMLInputElement>) {
+    if (!Number.isNaN(event.target.value)) {   
+      setProbability(Number.parseFloat(event.target.value));
+    }
   }
 
   const handleKeyDown = async (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -80,13 +84,14 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
       console.log("Consensus algorithm " + (transactions.consensusAlgorithm));
       if (transactions.posConsensus.slot != null) {
       setSlot(transactions.posConsensus.slot);
-      }
+      let realSlot = transactions.posConsensus.slot;
       console.log("Slot from transactions: " + slot);
+      console.log("Real-time slot: " + realSlot);
       const fetchData = async () => {
         try {
           const slotOptions = {
             method: 'GET',
-            url: `${API_URL_BC}api/v1/slot/${slot}`,
+            url: `${API_URL_BC}api/v1/slot/${realSlot}`,
             params: {apikey: API_KEY_BC},
             headers: {accept: 'application/json'}
           };
@@ -94,8 +99,15 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
           console.log("Slot Request: ", slotOptions)
           const responseParti = await axios.request(slotOptions);
           console.log("Slot response: ", responseParti.data)
-          setParticipation_rate(responseParti.data.syncaggregate_participation);
-          // Your code here that depends on the responseParti data
+          setParticipation_rate(responseParti.data.data.syncaggregate_participation);
+          // Participation rate
+          console.log("Participation rate: " + responseParti.data.data.syncaggregate_participation)
+          let drawNum = Number(responseParti.data.data.syncaggregate_participation)*active_validators // n
+          console.log(drawNum)
+          if (Number(participation_rate) > 0) {
+            let cdfresult = hypergeometricCDF(active_validators, drawNum, active_validators/32, (2/3)*drawNum);
+            console.log("CDF result: " + cdfresult);
+          }
         } catch (error) {
           console.log({error})
         }
@@ -103,7 +115,9 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
 
       fetchData();
     }
-  }, [transactions, slot]);
+    }
+  }, [transactions, slot, participation_rate]);
+
 
   async function getParticipation(blockNumber: string, retryCount = 0) {
     const maxRetries = 3;
@@ -112,8 +126,10 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
               try {
                 const response = await TransactionService.getSlot(blockNumber);
                 if (response.data.data[0]) {
-                setTransactions(response.data.data[0]);
-                console.log("before timeout", response.data); }
+                setTransactions(response.data.data[0]); 
+                console.log("Received transaction and block data:", response.data); 
+                
+              }
                 else if (retryCount < maxRetries) {
                   console.log(`Retry attempt ${retryCount + 1}`);
                   getParticipation(blockNumber, retryCount + 1);
@@ -155,7 +171,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
 */
   async function transfer() {
     // Set the network response status to "pending"
-    console.log({showSafetyProbabilityInput})
+    console.log("Probability input: " + probability)
     setNetworkResponse({
       status: 'pending',
       message: '',
@@ -169,9 +185,8 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
         wait(20000); // Wait until sepolia node gets block update
         setTimeout(() => {
           // Place the following lines here
-          setParticipation_rate(getParticipation(receipt.blockNumber.toString()).toString());
-          console.log("Participation rate (with delay): " + participation_rate);
-          console.log(transactions);
+         setParticipation_rate(getParticipation(receipt.blockNumber.toString()).toString());
+          //console.log(transactions);
           setNetworkResponse({
             status: 'complete',
             message: <p>Transfer complete! <a href={`${sepolia.blockExplorerUrl}/tx/${receipt.transactionHash}`} target="_blank" rel="noreferrer">
@@ -179,7 +194,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
               </a></p>,
           });
           return receipt;
-        }, 1000); // Delay execution for 20000 milliseconds (20 seconds) to give time for sepolia node to update
+        }, 5000); // Delay execution for 20000 milliseconds (20 seconds) to give time for sepolia node to update
         return receipt;
       } else {
         // Transaction failed
@@ -244,8 +259,8 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
         {showSafetyProbabilityInput && (
           <div className="form-group mt-3">
             <label>Probability for transaction safety:</label>
-            <input type="text" placeholder="Enter a value between 0 and 100" aria-placeholder="Enter a value between 0 and 100" className="form-control"
-              value={probability} onChange={handleChange} onKeyDown={handleKeyDown} />
+            <input type="number" placeholder="Enter a value between 0 and 100" aria-placeholder="Enter a value between 0 and 100" className="form-control"
+              value={probability} onChange={handleProbabilityChange} onKeyDown={handleKeyDown} />
           </div>
         )}
 

@@ -10,14 +10,15 @@ import { get } from 'http';
 import axios from 'axios';
 import { TransactionService } from '../../services/TransactionService';
 import { wait } from '@testing-library/user-event/dist/utils';
-import { hypergeometricCDF, calculateMeanValues } from '../../utils/math.js';
+import { hypergeometricCDF, calculateMeanValues, twoUpperFailure, fiveUpperFailure/*, twoLowerFailure, fiveLowerFailure*/ } from '../../utils/math.js';
+import { act } from 'react-dom/test-utils';
 
 
 interface AccountDetailProps {
   account: Account
 }
 
-const active_validators = 1850;
+let active_validators = 1850;
 const API_URL_BC = 'https://sepolia.beaconcha.in/';                       
 const API_KEY_BC = 'V3haY1Rtck9OOFVZOUsxd2hmRmVKY1RXb2gzTQ';
 
@@ -85,8 +86,13 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
       if (transactions.posConsensus.slot != null) {
       setSlot(transactions.posConsensus.slot);
       let realSlot = transactions.posConsensus.slot;
+      let realEpoch = transactions.posConsensus.epoch;
+      // to be removed
       console.log("Slot from transactions: " + slot);
+      // Change real-time to current after testing
       console.log("Real-time slot: " + realSlot);
+      console.log("Real-time epoch: " + realEpoch);
+      
       const fetchData = async () => {
         try {
           const slotOptions = {
@@ -95,18 +101,47 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
             params: {apikey: API_KEY_BC},
             headers: {accept: 'application/json'}
           };
-
+          const epochOptions = {
+            method: 'GET',
+            url: `${API_URL_BC}api/v1/epoch/${realEpoch}`,
+            params: {apikey: API_KEY_BC},
+            headers: {accept: 'application/json'}
+          };
           console.log("Slot Request: ", slotOptions)
           const responseParti = await axios.request(slotOptions);
+          const responseValidators = await axios.request(epochOptions);
+          
           console.log("Slot response: ", responseParti.data)
+          console.log("Epoch response for validatorAmount: ", responseValidators.data)
           setParticipation_rate(responseParti.data.data.syncaggregate_participation);
           // Participation rate
           console.log("Participation rate: " + responseParti.data.data.syncaggregate_participation)
-          let drawNum = Number(responseParti.data.data.syncaggregate_participation)*active_validators // n
-          console.log(drawNum)
+          console.log("Default validator amount (before node fetching) " + active_validators)
+          active_validators = responseValidators.data.data.validatorscount;
+          console.log("Real-time Validator amount: " + active_validators)
+          //let successNum = Number(responseParti.data.data.syncaggregate_participation)*active_validators // n // legacy, thought drawNum is participation rate*active_validators, to be removed after meeting on wednesday
+          let participation = Number(responseParti.data.data.syncaggregate_participation);
+          // success rate is part of our safety rule according to Thomas, meaning it is part of our protocol and does not depend on chain data or user input
+          let successRate = 0.8; // N
+          let totalSuccess = successRate*active_validators; // K
+          let drawNum = active_validators/32; // n, in Ethereum divided by 32, we want 16 validators to be drawn in an epoch
+          let observedSuccess = (2/3)*drawNum; // k
+
+
           if (Number(participation_rate) > 0) {
-            let cdfresult = hypergeometricCDF(active_validators, drawNum, active_validators/32, (2/3)*drawNum);
-            console.log("CDF result: " + cdfresult);
+            let cdfResult = hypergeometricCDF(active_validators, totalSuccess, drawNum, observedSuccess);
+            console.log("CDF result: " + cdfResult);
+            // Assume that there is one quorum per block
+            //  TODO: Get block latest and subtract it from block of this transaction to get blockDifference. Afterwards calculateMeanValues(cdfResult, fiveUpperFailure, blockDifference, BlockDifference)
+
+            let fiveUpperFailureMean = calculateMeanValues(cdfResult, fiveUpperFailure);
+            let twoUpperFailureMean = calculateMeanValues(cdfResult, twoUpperFailure);
+            //let fiveLowerFailureMean = calculateMeanValues(cdfResult, fiveLowerFailure);
+            //let twoLowerFailureMean = calculateMeanValues(cdfResult, twoLowerFailure);
+            console.log('Five Upper Failure Mean:', fiveUpperFailureMean);
+            console.log('Two Upper Failure Mean:', twoUpperFailureMean);
+            //console.log('Five Lower Failure Mean:', fiveLowerFailureMean);
+            //console.log('Two Lower Failure Mean:', twoLowerFailureMean);
           }
         } catch (error) {
           console.log({error})

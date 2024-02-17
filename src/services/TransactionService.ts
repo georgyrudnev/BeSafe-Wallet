@@ -10,7 +10,7 @@ export class TransactionService {
 
   // Beacon Chain API to get participation rate
   static API_URL_BC = 'https://sepolia.beaconcha.in/';
-  static API_KEY_BC = 'V3haY1Rtck9OOFVZOUsxd2hmRmVKY1RXb2gzTQ';
+  static API_KEY_BC = 'bnlJQVNhZUszV2xjZ0tJaEEzd05XbjgyMEhiSw';
 
   static async getTransactions(address: string) {
     const options = {
@@ -44,25 +44,46 @@ export class TransactionService {
   static async getSlot(blockNumber: string) {
     const options = {
       method: 'GET',
-      // removed ?apikey=${API_KEY_BC}
-      url: `https://sepolia.beaconcha.in/api/v1/execution/block/${blockNumber}`,
-      params: {apikey: TransactionService.API_KEY_BC},
+      url: `https://sepolia.beaconcha.in/api/v1/execution/block/${blockNumber}?apikey=${TransactionService.API_KEY_BC}`,
+      //params: {apikey: TransactionService},
       headers: {accept: 'application/json'}
-        //'Access-Control-Allow-Origin': 'http://localhost:3000',
-        //'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
-        //'Access-Control-Allow-Headers': 'Content-Type',
-        //'Access-Control-Allow-Credentials': 'true'
     };
     console.log("Execution Request: ", options)
 
-      const response = await axios.request(options)//.then(response => {;
-      
-    //}).catch(error => {
-      //console.log("Await Error: ", response)})
+      const response = await axios.request(options)
 
-    //console.log("Transactions interface:", transactions);
+    return response
+
+  } 
+
+  static async getSlotDetails(slotNumber: string) {
+    const slotOptions = {
+      method: 'GET',
+      url: `${TransactionService.API_URL_BC}api/v1/slot/${slotNumber}?apikey=${TransactionService.API_KEY_BC}`,
+      //params: {apikey: TransactionService},
+      headers: {accept: 'application/json'}
+    };
+    console.log("Slot Details: ", slotOptions)
+
+      const response = await axios.request(slotOptions)
     
-    return response//transactions[0].posConsensus.slot;
+    return response
+
+  } 
+
+  static async getValidators(epochNumber: number) {
+    const epochOptions = {
+      method: 'GET',
+      url: `${TransactionService.API_URL_BC}api/v1/epoch/${epochNumber}`,
+      params: {apikey: TransactionService.API_KEY_BC},
+      headers: {accept: 'application/json'}
+    };
+
+    console.log("Epoch details for validator amount: ", epochOptions)
+
+      const response = await axios.request(epochOptions)
+    
+    return response
 
   } 
 

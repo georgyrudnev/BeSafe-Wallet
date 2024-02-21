@@ -119,15 +119,16 @@ async function getLatestBlock (){
 
       let cdfResult = hypergeometricCDF(active_validators, totalSuccess, drawNum, observedSuccess);
       console.log("CDF result  in loop: " + cdfResult);
-      let twoUpperFailureMean = calculateMeanValues(cdfResult, twoUpperFailure);
+      
       let quorum = blockHeight/2;
-      console.log('Two Upper Failure Mean array: ' + twoUpperFailureMean[quorum-1]);
-      if (probability >= twoUpperFailureMean[quorum-1]) {
+      let fiveUpperFailureMean = calculateMeanValues(cdfResult, fiveUpperFailure, quorum, blockHeight)//latestBlock-transactionBlock); //TO BE DONE
+      console.log('Five Upper Failure Mean: ' + fiveUpperFailureMean);
+      if (probability >= fiveUpperFailureMean) {
         setSafe(true);
         console.log('Probability reached! Your transaction is safe!');
         setFinalQuorum(quorum);
         console.log('Your failure probability: ', probability);
-        console.log('Two Upper Failure Mean:', twoUpperFailureMean[(blockHeight/2)-1]);
+        console.log('Five Upper Failure Mean:', fiveUpperFailureMean);
       }
       else {
         getLatestBlock();
@@ -153,9 +154,10 @@ try {
   setCurrentSlot(block.data.data[0].posConsensus.slot);
   console.log("Current slot: " + currentSlot);
   let partiResponse = await TransactionService.getSlotDetails(currentSlot.toString());
-  if (partiResponse.data.data.syncaggregate_participation > 0.67) {
+  if (partiResponse.data.data.syncaggregate_participation > 0.67) { // Fix to be 2/3
     console.log("Block height updated: " + blockHeight);
     setBlockHeight(blockHeight + 1);
+    // ZETA Question: What if we have empty slot without proposed block? Do we increase block height if validators voted for previous one?
   }
   // Get the block number for latest slot
 
@@ -236,19 +238,12 @@ if (safe === false) {
             let cdfResult = hypergeometricCDF(active_validators, totalSuccess, drawNum, observedSuccess);
             console.log("CDF result: " + cdfResult);
             setCdf("CDF result: " + cdfResult.toString() + "\n");
-            setStatistics({ 
-              cdf: cdfResult.toString(), 
-              meanValues: meanValues });
+
             // Assume that there is one quorum per block
             //  Old TODO: Get block latest and subtract it from block of this transaction to get blockDifference. Afterwards calculateMeanValues(cdfResult, fiveUpperFailure, blockDifference, BlockDifference)
 
-            let fiveUpperFailureMean = calculateMeanValues(cdfResult, fiveUpperFailure);
-            let twoUpperFailureMean = calculateMeanValues(cdfResult, twoUpperFailure);
-            //let fiveLowerFailureMean = calculateMeanValues(cdfResult, fiveLowerFailure);
-            //let twoLowerFailureMean = calculateMeanValues(cdfResult, twoLowerFailure);
-            console.log('Five Upper Failure Mean:', fiveUpperFailureMean);
-            console.log('Two Upper Failure Mean:', twoUpperFailureMean);
-            setMeanValues("Five upper failure:\n" + JSON.stringify(fiveUpperFailureMean, null, 2) + "\n" + "Two upper failure:\n" + JSON.stringify(twoUpperFailureMean, null, 2));
+
+           // setMeanValues("Five upper failure:\n" + JSON.stringify(fiveUpperFailureMean, null, 2) + "\n" + "Two upper failure:\n" + JSON.stringify(twoUpperFailureMean, null, 2));
             //console.log('Five Lower Failure Mean:', fiveLowerFailureMean);
             //console.log('Two Lower Failure Mean:', twoLowerFailureMean);
           }

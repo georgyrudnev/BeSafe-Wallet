@@ -1,8 +1,8 @@
 import jStat from 'jstat';
 
 //
-export function calculateMeanValues(cdfResult, values, amount_quorums = 1, block_height = 2) {
-  return values.map((value, i) => Math.pow(cdfResult, amount_quorums/*Math.floor((i + 2) / 2)*/) * value);
+export function calculateMeanValues(cdfResult, values, amount_quorums = 1, block_height = 0) {
+  return Math.pow(cdfResult, amount_quorums/*Math.floor((i + 2) / 2)*/) * values[block_height-2];
 }
 
 export function hypergeometricCDF(N, K, n, k) {

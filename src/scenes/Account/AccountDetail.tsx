@@ -32,21 +32,19 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
   const [safe, setSafe] = useState(false);
   const [showSafetyProbabilityInput, setShowSafetyProbabilityInput] = useState(false);
   const [probability, setProbability] = useState(0.01);
+  const [missedSlots, setMissedSlots] = useState(0);
 
   // Declare a new state variable, which we'll call participation_rate   TODO CHECK IF STRING OR NUMBER 
   const successRate = 0.8;
   const [participation_rate, setParticipation_rate] = useState('');
   const [validatorAmount, setValidatorAmount] = useState(0);
-  const [cdf, setCdf] = useState('computing cdf...');
-  const [meanValues, setMeanValues] = useState('computing mean values...');
-  const [currentSlot, setCurrentSlot] = useState(0);
+  const [blockHeight, setBlockHeight] = useState(0);
+  const [currentEpoch, setCurrentEpoch] = useState(0);
   const [currentBlock, setCurrentBlock] = useState(0)
   const [latestBlock, setLatestBlock] = useState(0)
-  const [blockHeight, setBlockHeight] = useState(0);
-  const [statistics, setStatistics] = useState<{ cdf: string, meanValues: string }>({
-    cdf: 'computing cdf  statisstic...',
-    meanValues: 'computing mean values statistc...'
-  });
+
+  const [initialBlock, setInitialBlock] = useState(0);
+  const [amountQuorums, setAmountQuorums] = useState(0);
 
   const [transactions, setTransactions] = useState<Transaction>();
   const [slot, setSlot] = useState(0);
@@ -99,16 +97,57 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
 
 async function getLatestBlock (){
          setTimeout(async () => {
-          const getLatestSlot = await TransactionService.getSlotDetails("latest"); 
+          let getLatestSlot = await TransactionService.getSlotDetails("latest"); 
           setLatestBlock(getLatestSlot.data.data.exec_block_number);
           console.log("Latest not safe block: ", getLatestSlot.data.data.exec_block_number)
         }, 19000);
 }
+
+useEffect(() => {
+  const fetchLatestBlockData = async () => {
+    // Fetch data here
+    let getLatestSlot = await TransactionService.getSlotDetails("latest"); 
+    setLatestBlock(getLatestSlot.data.data.exec_block_number);
+    console.log("Latest block updated in 20s interval: ", getLatestSlot.data.data.exec_block_number)
+  };
+
+  // Fetch immediately and then every intervalID seconds
+  fetchLatestBlockData();
+  const intervalId = setInterval(fetchLatestBlockData, 26000);
+
+  // Clear interval on component unmount
+  return () => {
+    clearInterval(intervalId);
+  };
+}, []);
+
+//  OVERLEAF: Getting real-time validator amount from sepolia node provider, fetching active validator amount every epoch
+useEffect(() => {
+  if (currentEpoch > 0) {
+    const fetchValidators = async () => {
+    let responseValidators = await TransactionService.getValidators(currentEpoch);
+    active_validators = responseValidators.data.data.validatorscount;
+    setValidatorAmount(active_validators);
+    console.log("Real-time Validator amount updated: " + active_validators);
+    };
+
+    fetchValidators();
+    }
+}, [currentEpoch]);
+
+function resetStates() {
+  setAmountQuorums(0);
+  setInitialBlock(0);
+  setCurrentEpoch(0);
+  setValidatorAmount(0);
+  setMissedSlots(0);
+}
   useEffect(() => {
-    // If we have two consecutive blocks with participation rate > 67%
-    console.log("INSIDE THE BLOCKHEIGHT USEEFFECT Block height: " + blockHeight);
-    if (blockHeight > 0 && blockHeight % 2 === 0) {
-      let active_validators = validatorAmount;
+    // Triggered whenever we have a new quorum or new epoch.
+    if (amountQuorums > 0) {
+    let quorum = amountQuorums
+    let active_validators = validatorAmount;
+    console.log("We have " + quorum + " Quorum reached. Running cdf...");
 
       let totalSuccess = Math.ceil(successRate * active_validators); // K (rounded up)
       let drawNum = Math.ceil(active_validators/32); // n, in Ethereum divided by 32, we want 16 validators to be drawn in an epoch
@@ -118,66 +157,88 @@ async function getLatestBlock (){
           console.log("Observed success (k): " + observedSuccess);
 
       let cdfResult = hypergeometricCDF(active_validators, totalSuccess, drawNum, observedSuccess);
-      console.log("CDF result  in loop: " + cdfResult);
+      console.log("CDF result: " + cdfResult);
+      console.log("latest block: " + latestBlock + " initial block: " + initialBlock);
+      let blockHeight = latestBlock-initialBlock;
+      if (blockHeight > 0 && blockHeight < 21) {
+        let fiveUpperFailureMean = calculateMeanValues(cdfResult, fiveUpperFailure, quorum, blockHeight)//latestBlock-transactionBlock);
       
-      let quorum = blockHeight/2;
-      let fiveUpperFailureMean = calculateMeanValues(cdfResult, fiveUpperFailure, quorum, blockHeight)//latestBlock-transactionBlock); //TO BE DONE
-      console.log('Five Upper Failure Mean: ' + fiveUpperFailureMean);
-      if (probability >= fiveUpperFailureMean) {
-        setSafe(true);
-        console.log('Probability reached! Your transaction is safe!');
-        setFinalQuorum(quorum);
-        console.log('Your failure probability: ', probability);
-        console.log('Five Upper Failure Mean:', fiveUpperFailureMean);
-      }
-      else {
-        getLatestBlock();
-        console.log('Your transaction is not safe yet! Updating latest block...');
+        console.log('Five Upper Failure Mean: ' + fiveUpperFailureMean);
+        if (probability >= fiveUpperFailureMean) {
+          setCurrentBlock(0);
+          setFinalQuorum(quorum);
+          resetStates();
+          
+          setSafe(true);
+          console.log('Probability reached! Your transaction is safe!');
+          console.log('Your failure probability: ', probability);
+          console.log('Five Upper Failure Mean:', fiveUpperFailureMean);
+          setBlockHeight(blockHeight);
+          
+        }
+        else {
+          getLatestBlock();
+          console.log('Your transaction is not safe yet! Updating latest block...');
         
+        }
+      } else {
+        resetStates();
       }
     }
-    else {
-      getLatestBlock();
-      console.log('Your transaction is not safe yet! Updating latest block...');
-      }
-  }, [blockHeight, validatorAmount]);
+  }, [amountQuorums, validatorAmount]);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout; // Define timeoutId here
     //let i = 0;
     const fetchDataAndUpdate = async () => {
       // Fetch data and update state
-
-      if (latestBlock >= currentBlock && currentBlock > 0 && safe === false) { 
-try {
-  const block = await TransactionService.getSlot(currentBlock.toString());
-  setCurrentSlot(block.data.data[0].posConsensus.slot);
-  console.log("Current slot: " + currentSlot);
-  let partiResponse = await TransactionService.getSlotDetails(currentSlot.toString());
-  if (partiResponse.data.data.syncaggregate_participation > 0.67) { // Fix to be 2/3
-    console.log("Block height updated: " + blockHeight);
-    setBlockHeight(blockHeight + 1);
+      console.log("Checking current state... current block: " + currentBlock + " Latest block: " + latestBlock + " Quorums: " + amountQuorums);
+      if (latestBlock > currentBlock && currentBlock > 0 && safe === false) { 
+        try {
+          const block = await TransactionService.getSlot(currentBlock.toString());
+          let curSlot = block.data.data[0].posConsensus.slot;
+          let curEpoch = block.data.data[0].posConsensus.epoch;
+          if (curEpoch > currentEpoch) {
+            // Trigger validator amount update
+            setCurrentEpoch(curEpoch);
+          }
+          console.log("Current slot: " + curSlot);
+          let partiResponse = await TransactionService.getSlotDetails(curSlot.toString());
+          console.log("Quorum Block 1/2 Parti Rate: " + partiResponse.data.data.syncaggregate_participation);
+          if (partiResponse.data.data.syncaggregate_participation > 0.67) { // Fix to be 2/3
+            try {
+            let nextPartiResponse = await TransactionService.getSlotDetails((curSlot+1).toString());
+            console.log("Quorum Block 2/2 Parti Rate: " + nextPartiResponse.data.data.syncaggregate_participation);
+            if (nextPartiResponse.data.data.syncaggregate_participation > 0.67) { // Fix to be 2/3
+              setAmountQuorums(amountQuorums + 1);
+            }
+              } catch (error) {
+              setMissedSlots(missedSlots + 1);
+              console.log("Slot " + curSlot+1 + " missed")
+            }
+          } 
     // ZETA Question: What if we have empty slot without proposed block? Do we increase block height if validators voted for previous one?
-  }
+              
   // Get the block number for latest slot
 
-  setCurrentBlock(currentBlock + 1);
-  console.log("Current block: " + currentBlock);
-  setTimeout(async () => {
-    const getLatestSlot = await TransactionService.getSlotDetails("latest"); 
-    setLatestBlock(getLatestSlot.data.data.exec_block_number);
-  }, 12000);
-} catch (error) {
-  console.error("An error occurred:", error);
+          setCurrentBlock(currentBlock + 2);
+          console.log("+2 Current block: " + currentBlock);
+          setTimeout(async () => {
+            const getLatestSlot = await TransactionService.getSlotDetails("latest"); 
+            setLatestBlock(getLatestSlot.data.data.exec_block_number);
+          }, 12000);
+        } catch (error)   
+        {
+          console.error("An error occurred:", error);
   // Repeat the request
-  setTimeout(fetchDataAndUpdate, 20000);
-}
+          setTimeout(fetchDataAndUpdate, 20000);
+        }
       }
-if (safe === false) {
+      if (safe === false) {
       // Schedule the next update
-      timeoutId = setTimeout(fetchDataAndUpdate, 20000); // Store the timeout ID // 20000 ms = 20 seconds
-      clearTimeout(timeoutId); // Cancel the timeout using the stored ID
-    };
+        timeoutId = setTimeout(fetchDataAndUpdate, 20000); // Store the timeout ID // 20000 ms = 20 seconds
+        clearTimeout(timeoutId); // Cancel the timeout using the stored ID
+      };
     }
     // Start the updates
     fetchDataAndUpdate();
@@ -195,67 +256,19 @@ if (safe === false) {
       // code here that depends on the updated transactions state
       console.log("Consensus algorithm " + (transactions.consensusAlgorithm));
       if (transactions.posConsensus.slot != null) {
-      setSlot(transactions.posConsensus.slot);
-      let realSlot = transactions.posConsensus.slot;
-      let realEpoch = transactions.posConsensus.epoch;
-
-      // to be removed after testing
-      console.log("Slot from transactions: " + slot);
-      console.log("Transaction slot: " + realSlot);
-      console.log("Transaction epoch: " + realEpoch);
+        setSlot(transactions.posConsensus.slot);
+        let realSlot = transactions.posConsensus.slot;
+        let realEpoch = transactions.posConsensus.epoch;
+        setCurrentEpoch(realEpoch);
+        // to be removed after testing
+        console.log("Slot from transactions: " + slot);
+        console.log("Transaction slot: " + realSlot);
+        console.log("Transaction epoch: " + realEpoch);
       
-      const fetchData = async () => {
-        try {
-          wait(10000); 
-          const responseParti = await TransactionService.getSlotDetails(realSlot.toString());//await axios.request(slotOptions);
-          const responseValidators = await TransactionService.getValidators(realEpoch);//axios.request(epochOptions);
-          const getLatestSlot = await TransactionService.getSlotDetails("latest");
-          
-          console.log("Latest block: ", getLatestSlot.data.data.exec_block_number)
-          setLatestBlock(getLatestSlot.data.data.exec_block_number)
-          console.log("SlotDetails response: ", responseParti.data)
-          console.log("Epoch response for validatorAmount: ", responseValidators.data)
-          setParticipation_rate(responseParti.data.data.syncaggregate_participation);
-          // Participation rate
-          console.log("Participation rate: " + responseParti.data.data.syncaggregate_participation)
-          active_validators = responseValidators.data.data.validatorscount;
-          setValidatorAmount(active_validators);
-          console.log("Real-time Validator amount: " + active_validators)
-          //let successNum = Number(responseParti.data.data.syncaggregate_participation)*active_validators // n // legacy, thought drawNum is participation rate*active_validators, to be removed after meeting on wednesday
-          
-                // OVERLEAF: Participation rate used to validate every subsequent block has participation rate >67% and if not, the block is not increasing block height input to our cdf function
-          let participation = Number(responseParti.data.data.syncaggregate_participation);
-          // TODO implement loop logic that checks our block is < latest block and we have not achieved input safety rate, check next blocks and calculate mean values if block participation rate is >67%
-          
-          // success rate is part of our safety rule according to Thomas, meaning it is part of our protocol and does not depend on chain data or user input
-
-          let totalSuccess = Math.ceil(successRate * active_validators); // K (rounded up)
-          let drawNum = Math.ceil(active_validators/32); // n, in Ethereum divided by 32, we want 16 validators to be drawn in an epoch
-          let observedSuccess = Math.ceil((2/3)*drawNum); // k
-
-
-          if (Number(participation_rate) > 0) {
-            let cdfResult = hypergeometricCDF(active_validators, totalSuccess, drawNum, observedSuccess);
-            console.log("CDF result: " + cdfResult);
-            setCdf("CDF result: " + cdfResult.toString() + "\n");
-
-            // Assume that there is one quorum per block
-            //  Old TODO: Get block latest and subtract it from block of this transaction to get blockDifference. Afterwards calculateMeanValues(cdfResult, fiveUpperFailure, blockDifference, BlockDifference)
-
-
-           // setMeanValues("Five upper failure:\n" + JSON.stringify(fiveUpperFailureMean, null, 2) + "\n" + "Two upper failure:\n" + JSON.stringify(twoUpperFailureMean, null, 2));
-            //console.log('Five Lower Failure Mean:', fiveLowerFailureMean);
-            //console.log('Two Lower Failure Mean:', twoLowerFailureMean);
-          }
-        } catch (error) {
-          console.log({error})
-        }
-      };
-
-      fetchData();
+      
+      }
     }
-    }
-  }, [transactions, slot, participation_rate, cdf, meanValues]);
+  }, [transactions]);
 
 
   async function getParticipation(blockNumber: string, retryCount = 0) {
@@ -286,6 +299,8 @@ if (safe === false) {
 
             //  OVERLEAF: Transfer function triggered when transfer button is clicked, amount and probability input is provided
   async function transfer() {
+    setFinalQuorum(0);
+    setSafe(false);
     // Set the network response status to "pending"
     console.log("Probability input: " + probability)
     setNetworkResponse({
@@ -299,7 +314,9 @@ if (safe === false) {
         
       if (receipt.status === 1) {
         // Set the network response status to "complete" and the message to the transaction hash
+        setInitialBlock(receipt.blockNumber);
         setCurrentBlock(receipt.blockNumber);
+        
         wait(20000); 
                 //  OVERLEAF: Main function for our implementation, to incorporate the safety rule
         //const callback = async () => {
@@ -407,7 +424,7 @@ if (safe === false) {
             </p>
           )}
           {finalQuorum > 0 && (
-            <p>Final quorums: {finalQuorum} <br/>
+            <p>Final quorums: {finalQuorum}, Block Height: {blockHeight}, Missed slots: {missedSlots} <br/>
               <a>Your transaction is safe now! </a> 
             </p>
           )}

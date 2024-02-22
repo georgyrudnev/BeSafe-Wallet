@@ -2,7 +2,7 @@ import jStat from 'jstat';
 
 //
 export function calculateMeanValues(cdfResult, values, amount_quorums = 1, block_height = 0) {
-  return Math.pow(cdfResult, amount_quorums/*Math.floor((i + 2) / 2)*/) * values[block_height-2];
+  return Math.pow(cdfResult, amount_quorums/*Math.floor((i + 2) / 2)*/) * values[block_height-1];
 }
 
 export function hypergeometricCDF(N, K, n, k) {
@@ -13,15 +13,11 @@ export function hypergeometricCDF(N, K, n, k) {
   return cdfValue;
 }
 
-// Example usage
-let N = 1000;   // Total population size
-let K = 800;    // Total number of successes in the population
-let n = 25;     // Number of draws
-let k = 17;     // Number of observed successes
+
 
 // Calculate CDF
-let cdfResult = hypergeometricCDF(N, K, n, k);
-console.log('CDF Result:', cdfResult);
+//let cdfResult = hypergeometricCDF(N, K, n, k);
+//console.log('CDF Result:', cdfResult);
 
 // Provided failure arrays
                                       // Question: Which index of array shows what? Index 1 for block height 2? Index 2 for block height 3?
@@ -31,12 +27,12 @@ export let twoUpperFailure = [0.40081, 0.28256, 0.20242, 0.14596, 0.10624, 0.077
 //export let twoLowerFailure = [0.33446, 0.20267, 0.12452, 0.077253, 0.048272, 0.030331, 0.019143, 0.012126, 0.0077051, 0.0049087, 0.0031342, 0.0020051, 0.001285, 0.0008248, 0.00053013, 0.00034115, 0.00021978, 0.00014174, 9.1492e-05];
 
 // Calculate mean values
-let fiveUpperFailureMean = calculateMeanValues(cdfResult, fiveUpperFailure);
-let twoUpperFailureMean = calculateMeanValues(cdfResult, twoUpperFailure);
+//let fiveUpperFailureMean = calculateMeanValues(cdfResult, fiveUpperFailure);
+//let twoUpperFailureMean = calculateMeanValues(cdfResult, twoUpperFailure);
 //let fiveLowerFailureMean = calculateMeanValues(cdfResult, fiveLowerFailure);
 //let twoLowerFailureMean = calculateMeanValues(cdfResult, twoLowerFailure);
 
-console.log('Five Upper Failure Mean:', fiveUpperFailureMean);
-console.log('Two Upper Failure Mean:', twoUpperFailureMean);
+//console.log('Five Upper Failure Mean:', fiveUpperFailureMean);
+//console.log('Two Upper Failure Mean:', twoUpperFailureMean);
 //console.log('Five Lower Failure Mean:', fiveLowerFailureMean);
 //console.log('Two Lower Failure Mean:', twoLowerFailureMean);

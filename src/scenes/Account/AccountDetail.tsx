@@ -6,12 +6,10 @@ import AccountTransactions from './AccountTransactions';
 import { ethers } from 'ethers';
 import { toFixedIfNecessary } from '../../utils/AccountUtils';
 import './Account.css';
-import { get } from 'http';
-import axios from 'axios';
 import { TransactionService } from '../../services/TransactionService';
 import { wait } from '@testing-library/user-event/dist/utils';
-import { hypergeometricCDF, calculateMeanValues, twoUpperFailure, fiveUpperFailure/*, twoLowerFailure, fiveLowerFailure*/ } from '../../utils/math.js';
-import { act } from 'react-dom/test-utils';
+import { hypergeometricCDF, calculateMeanValues, fiveUpperFailure/*, twoLowerFailure, fiveLowerFailure*/ } from '../../utils/math.js';
+
 /// Known issues: safe state variable needs to be resetted, when user sends another transaction. Otherwise user needs to reloab page every time he wants 
 //  to send another transaction.
 
@@ -33,6 +31,8 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
   const [showSafetyProbabilityInput, setShowSafetyProbabilityInput] = useState(false);
   const [probability, setProbability] = useState(0.01);
   const [missedSlots, setMissedSlots] = useState(0);
+  const [startTime, setStartTime] = useState(0);
+  const [transferDuration, setTransferDuration] = useState(0);	
 
   // Declare a new state variable, which we'll call participation_rate   TODO CHECK IF STRING OR NUMBER 
   const successRate = 0.8;
@@ -91,7 +91,11 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
   const handleKeyDown = async (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.keyCode === 13) {
       event.preventDefault();
+      setStartTime(performance.now()); // Evaluation of performance
       transfer();
+      let endTime = performance.now(); // Evaluation of performance ends
+      let duration = endTime - startTime; // Calculate duration
+      setTransferDuration(duration);
     }
   }
 
@@ -171,6 +175,9 @@ function resetStates() {
           
           setSafe(true);
           console.log('Probability reached! Your transaction is safe!');
+          let endTime = performance.now(); // Evaluation of performance ends
+          let duration = endTime - startTime; // Calculate duration
+          setTransferDuration(duration);
           console.log('Your failure probability: ', probability);
           console.log('Five Upper Failure Mean:', fiveUpperFailureMean);
           setBlockHeight(blockHeight);
@@ -316,7 +323,9 @@ function resetStates() {
         // Set the network response status to "complete" and the message to the transaction hash
         setInitialBlock(receipt.blockNumber);
         setCurrentBlock(receipt.blockNumber);
-        
+        let endTime = performance.now(); // Evaluation of performance ends
+        let duration = endTime - startTime; // Calculate duration
+        setTransferDuration(duration);
         wait(20000); 
                 //  OVERLEAF: Main function for our implementation, to incorporate the safety rule
         //const callback = async () => {
@@ -421,11 +430,13 @@ function resetStates() {
           {finalQuorum == 0 && networkResponse.status === 'complete' && (
             <p>Safety does not fulfill your failure requirement yet.
               Waiting for further block updates...
+              Time passed: {transferDuration} ms  
             </p>
           )}
           {finalQuorum > 0 && (
             <p>Final quorums: {finalQuorum}, Block Height: {blockHeight}, Missed slots: {missedSlots} <br/>
-              <a>Your transaction is safe now! </a> 
+              Your transaction is safe now!
+              Time passed: {transferDuration} ms  
             </p>
           )}
 

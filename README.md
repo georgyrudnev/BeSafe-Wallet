@@ -10,7 +10,8 @@ A crypto wallet that makes it easy to use the blockchain.
 
 
 ## Quickstart
-
+Requirements:
+Yarn package(via package manager like npm or chocolatey) - can be installed here: https://classic.yarnpkg.com/lang/en/docs/install/#windows-stable
 ```
 yarn install
 yarn start

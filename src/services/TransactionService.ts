@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { sepolia } from '../models/Chain';
+import { network } from '../models/Chain';
+
 
 
 
@@ -8,15 +9,11 @@ export class TransactionService {
   static API_URL =  'https://deep-index.moralis.io/api/v2';
   static API_KEY =  'EuwYtjWwWHGbnwsCnGauMtMMaEQZugtjaws2ybm2ZpSR15a8vzl6QUPkEUWHTOCU';
 
-  // Beacon Chain API to get participation rate
-  static API_URL_BC = 'https://sepolia.beaconcha.in/';
-  static API_KEY_BC = 'bnlJQVNhZUszV2xjZ0tJaEEzd05XbjgyMEhiSw';
-
   static async getTransactions(address: string) {
     const options = {
         method: 'GET',
         url: `${TransactionService.API_URL}/${address}`,
-        params: {chain: sepolia.name.toLowerCase()},
+        params: {chain: network.name.toLowerCase()},
         headers: {accept: 'application/json', 'X-API-Key': TransactionService.API_KEY}
       };
 
@@ -44,7 +41,7 @@ export class TransactionService {
   static async getSlot(blockNumber: string) {
     const options = {
       method: 'GET',
-      url: `https://sepolia.beaconcha.in/api/v1/execution/block/${blockNumber}?apikey=${TransactionService.API_KEY_BC}`,
+      url: `${network.API_URL_BC}api/v1/execution/block/${blockNumber}?apikey=${network.API_KEY_BC}}`,
       //params: {apikey: TransactionService},
       headers: {accept: 'application/json'}
     };
@@ -59,7 +56,7 @@ export class TransactionService {
   static async getSlotDetails(slotNumber: string) {
     const slotOptions = {
       method: 'GET',
-      url: `${TransactionService.API_URL_BC}api/v1/slot/${slotNumber}?apikey=${TransactionService.API_KEY_BC}`,
+      url: `${network.API_URL_BC}api/v1/slot/${slotNumber}?apikey=${network.API_KEY_BC}`,
       //params: {apikey: TransactionService},
       headers: {accept: 'application/json'}
     };
@@ -74,8 +71,8 @@ export class TransactionService {
   static async getValidators(epochNumber: number) {
     const epochOptions = {
       method: 'GET',
-      url: `${TransactionService.API_URL_BC}api/v1/epoch/${epochNumber}`,
-      params: {apikey: TransactionService.API_KEY_BC},
+      url: `${network.API_URL_BC}api/v1/epoch/${epochNumber}`,
+      params: {apikey: network.API_KEY_BC},
       headers: {accept: 'application/json'}
     };
 

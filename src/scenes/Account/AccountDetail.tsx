@@ -1,6 +1,6 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import { sendToken, Transaction } from '../../utils/TransactionUtils';
-import { sepolia } from '../../models/Chain';
+import { network } from '../../models/Chain';
 import { Account } from '../../models/Account';
 import AccountTransactions from './AccountTransactions';
 import { ethers } from 'ethers';
@@ -18,15 +18,12 @@ interface AccountDetailProps {
 }
 
 let active_validators = 1850;
-const API_URL_BC = 'https://sepolia.beaconcha.in/';                       
-const API_KEY_BC = 'V3haY1Rtck9OOFVZOUsxd2hmRmVKY1RXb2gzTQ';
-
 
   // Declare a new state variable, which we'll call "showSafetyProbabilityInput"
   // and initialize it to false
 
 const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
-  // Set probability input field
+ 
   const [safe, setSafe] = useState(false);
   const [showSafetyProbabilityInput, setShowSafetyProbabilityInput] = useState(false);
   const [probability, setProbability] = useState(0.01);
@@ -36,7 +33,6 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
 
   // Declare a new state variable, which we'll call participation_rate   TODO CHECK IF STRING OR NUMBER 
   const successRate = 0.8;
-  const [participation_rate, setParticipation_rate] = useState('');
   const [validatorAmount, setValidatorAmount] = useState(0);
   const [blockHeight, setBlockHeight] = useState(0);
   const [currentEpoch, setCurrentEpoch] = useState(0);
@@ -63,7 +59,7 @@ const AccountDetail: React.FC<AccountDetailProps> = ({account}) => {
   //  OVERLEAF: Getting account balance from sepolia node provider
   useEffect(() => {
     const fetchData = async () => {
-        const provider = new ethers.providers.JsonRpcProvider(sepolia.rpcUrl);
+        const provider = new ethers.providers.JsonRpcProvider(network.rpcUrl);
         let accountBalance = await provider.getBalance(account.address);
         setBalance((String(toFixedIfNecessary(ethers.utils.formatEther(accountBalance)))));
     }
@@ -144,7 +140,7 @@ function resetStates() {
   setInitialBlock(0);
   setCurrentEpoch(0);
   setValidatorAmount(0);
-  setMissedSlots(0);
+  
 }
   useEffect(() => {
     // Triggered whenever we have a new quorum or new epoch.
@@ -307,6 +303,7 @@ function resetStates() {
             //  OVERLEAF: Transfer function triggered when transfer button is clicked, amount and probability input is provided
   async function transfer() {
     setFinalQuorum(0);
+    setMissedSlots(0);
     setSafe(false);
     // Set the network response status to "pending"
     console.log("Probability input: " + probability)
@@ -330,13 +327,12 @@ function resetStates() {
                 //  OVERLEAF: Main function for our implementation, to incorporate the safety rule
         //const callback = async () => {
           setTimeout(() => {
-         setParticipation_rate(getParticipation(receipt.blockNumber.toString()).toString());
           setNetworkResponse({
             status: 'complete',
             message: (
               <span>
                 Transfer was included in a block on the chain!{' '}
-                <a href={`${sepolia.blockExplorerUrl}/tx/${receipt.transactionHash}`} target="_blank" rel="noreferrer">
+                <a href={`${network.blockExplorerUrl}/tx/${receipt.transactionHash}`} target="_blank" rel="noreferrer">
                   View transaction
                 </a>
                 
@@ -374,7 +370,7 @@ function resetStates() {
   return (
     <div className='AccountDetail container'>
         <h4>
-                  Address: <a href={`${sepolia.blockExplorerUrl}/address/${account.address}`} target="_blank" rel="noreferrer">
+                  Address: <a href={`${network.blockExplorerUrl}/address/${account.address}`} target="_blank" rel="noreferrer">
             {account.address}
             </a><br/>
             Balance: {balance} ETH

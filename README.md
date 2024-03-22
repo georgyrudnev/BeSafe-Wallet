@@ -17,6 +17,14 @@ yarn install
 yarn start
 ```
 
+## Configure different chain
+To configure a different chain/network for your wallet, you can choose from 3 Ethereum networks:
+1. sepolia (testnet)
+2. holesky (testnet)
+3. mainnet
+
+Standard is sepolia testnet. To choose a different one you need to modify public/src/models/Chain.ts in the last line and set const network to one of the 3 above.
+
 ## Build as an extension:
 
 1. `yarn build`

@@ -1,5 +1,5 @@
 import { ethers, Wallet } from 'ethers';
-import { CHAINS_CONFIG, sepolia } from '../models/Chain';
+import { CHAINS_CONFIG, network } from '../models/Chain';
 
 export interface Transaction {
   //  status: string;
@@ -45,7 +45,7 @@ export async function sendToken(
   privateKey: string,
 ) {
 
-  const chain = CHAINS_CONFIG[sepolia.chainId];
+  const chain = CHAINS_CONFIG[network.chainId];
 
   // Create a provider using the Infura RPC URL for Sepolia
   const provider = new ethers.providers.JsonRpcProvider(chain.rpcUrl);

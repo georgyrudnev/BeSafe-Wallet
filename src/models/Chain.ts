@@ -38,7 +38,7 @@ export const holesky: Chain = {
     chainId: '17000',
     name: 'Holesky',
     blockExplorerUrl: 'https://holesky.etherscan.io',
-    rpcUrl: 'https://holesky.infura.io/v3/209800a15ce24cf6a44e251ea915b9b4', //  N.A.
+    rpcUrl: 'https://ethereum-holesky-rpc.publicnode.com',
     API_URL_BC: 'https://holesky.beaconcha.in/',
     API_KEY_BC: 'bnlJQVNhZUszV2xjZ0tJaEEzd05XbjgyMEhiSw'
 };
@@ -47,6 +47,7 @@ export const CHAINS_CONFIG = {
     [goerli.chainId]: goerli,
     [mainnet.chainId]: mainnet,
     [sepolia.chainId]: sepolia,
+    [holesky.chainId]: holesky,
 };
  // Set for other chain
 export const network = sepolia;

@@ -150,7 +150,7 @@ function resetStates() {
     console.log("We have " + quorum + " Quorum reached. Running cdf...");
 
       let totalSuccess = Math.ceil(successRate * active_validators); // K (rounded up)
-      let drawNum = Math.ceil(active_validators/32); // n, in Ethereum divided by 32, we want 16 validators to be drawn in an epoch
+      let drawNum = Math.ceil(active_validators/16); // n, in Ethereum divided by 32, we want 16 validators to be drawn in an epoch
       let observedSuccess = Math.ceil((2/3)*drawNum); // k
           console.log("Total success (K): " + totalSuccess);
           console.log("Draw number (n): " + drawNum);
